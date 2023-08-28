@@ -36,48 +36,51 @@ app.get('/', (req, res) => {
 })
 // 解析前端数据
 app.use(bodyParser.json());
-// 获取静态路径
-app.use(express.static(__dirname + '/data'));
 
 
 // token判断
 app.use(jwtAuthExclued);
 // 引入路由
 app.use(router);
-require('./router/files')(app);
 
 // 引入附件上传插件
 var multer = require('multer');
 var mkdir = require('./dao/mkdir');
+const path = require("path");
 
-
-// 控制文件存储
-var storage = multer.diskStorage({
-    destination: function (req, file, cb) {
+let storage = multer.diskStorage({
+    //设置存储路径
+    destination: (req, file, cb) => {
         let url = req.body.url;
-        mkdir.mkdirs('./data/' + url, err => {
+        mkdir.mkdirs('../data/' + url, err => {
             console.log(err);
         });
         cb(null, './data/' + url)
     },
-    filename: function (req, file, cb) {
+    //设置存储的文件名
+    filename: (req, file, cb) => {
         let name = req.body.name;
-        // 正则匹配后缀名
-        let type = file.originalname.replace(/.+\./, ".");
-        cb(null, name + type);
+        //获取文件的扩展名
+        let extname = path.extname(file.originalname);
+        filename = name + extname;
+        cb(null, filename);
     }
 })
+let objMulter = multer({ storage });
 
-// var upload = multer({ storage: storage })
-const upload = multer({ dest: 'data/group' })
+app.use(objMulter.any())   //any表示任意类型的文件
 
+app.use(express.static('./data'));//将静态资源托管，这样才能在浏览器上直接访问预览图片或则html页面
 
-app.post('/files/upload', upload.array('file', 9), function (req, res, next) {
+app.post('/files/upload', (req, res) => {
     let url = req.body.url
     let name = req.files[0].filename;
     let imgurl = '/' + url + '/' + name;
     res.send(imgurl);
-})
+});
+
+
+
 
 
 // 404页面
